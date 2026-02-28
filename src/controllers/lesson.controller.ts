@@ -183,7 +183,6 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
 export const getLesson = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
     try {
-<<<<<<< HEAD
         const lessonDoc = await db.collection('lessonPlans').doc(id).get();
         if (!lessonDoc.exists) {
             return res.status(404).json({ error: 'Lesson not found' });
@@ -192,20 +191,6 @@ export const getLesson = async (req: AuthRequest, res: Response) => {
         if (data?.teacherId !== req.user?.id) {
             // Optional: for shared/published content, this check might be relaxed
             // return res.status(401).json({ error: 'Unauthorized' });
-=======
-        const teacherId = req.user?.id;
-        if (!teacherId) {
-            console.warn("[Lessons] No teacherId in request, returning empty list");
-            return res.json([]);
-        }
-
-        const { limit } = req.query;
-        let query: any = db.collection('lessonPlans')
-            .where('teacherId', '==', teacherId);
-
-        if (limit) {
-            query = query.limit(Number(limit));
->>>>>>> ad89796f3e7d489ef5d6492748f98089d4d79651
         }
 
         let subjData = null;
