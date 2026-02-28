@@ -1,4 +1,3 @@
-
 import Groq from "groq-sdk";
 import { extractStrictJSON } from "../utils/analysis-utils";
 
@@ -8,10 +7,8 @@ import { extractStrictJSON } from "../utils/analysis-utils";
 export class GroqAnalysisService {
     private static getClient() {
         const apiKey = process.env.GROQ_API_KEY;
-        console.log("[DEBUG] GROQ_API_KEY loaded:", apiKey ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 4)}` : "MISSING");
-
-        if (!apiKey || apiKey === 'your_groq_api_key_here' || apiKey.length < 5) {
-            throw new Error("GROQ_API_KEY is missing, invalid, or still at default value in .env.");
+        if (!apiKey || apiKey.length < 5) {
+            throw new Error("GROQ_API_KEY is missing in .env.");
         }
         return new Groq({ apiKey });
     }
@@ -19,66 +16,101 @@ export class GroqAnalysisService {
     static async analyzeChunk(chunk: string, retryCount: number = 1): Promise<any> {
         const groq = this.getClient();
 
-        const systemPrompt = `You are a strict JSON generator. 
-Return ONLY valid JSON. No conversational text. No markdown backticks.
-The JSON must strictly follow this structure:
+        const systemPrompt = `You are a Professional Senior Professor. 
+Your goal is to transform the provided text into a high-quality, in-depth Study Guide.
+
+STUDY GUIDE CONTENT REQUIREMENTS:
+1. COMPREHENSIVE LECTURE NOTES (Summary):
+   - Provide a detailed academic summary (approx 200 words).
+   - Explain the "How" and "Why" behind the concepts.
+   - Expand on core concepts if the text is short.
+
+2. KEY LEARNING POINTS:
+   - Provide 7 to 10 important concepts.
+   - For EACH point, provide a HEADING and 1-2 sentences of explanation.
+   - Format: "Heading: Detailed explanation text"
+
+3. KNOWLEDGE CHECK (Quiz):
+   - Generate exactly 5 multiple-choice questions.
+   - 'answer' must be the FULL TEXT of the correct option.
+
+JSON RESPONSE FORMAT (Strict):
 {
-  "summary": "Full summary text here",
-  "key_points": ["point 1", "point 2", "point 3"],
+  "summary": "Full detailed multi-paragraph overview...",
+  "key_points": [
+      "Heading: Long detailed explanation 1...",
+      "Heading: Long detailed explanation 2...",
+      "Heading: Long detailed explanation 3..."
+  ],
   "quiz": [
-    {
-      "question": "Question text?",
-      "options": ["A", "B", "C", "D"],
-      "answer": "Correct Option"
-    }
+    { "question": "Q1?", "options": ["A", "B", "C", "D"], "answer": "Answer Text" },
+    { "question": "Q2?", "options": ["A", "B", "C", "D"], "answer": "Answer Text" },
+    { "question": "Q3?", "options": ["A", "B", "C", "D"], "answer": "Answer Text" },
+    { "question": "Q4?", "options": ["A", "B", "C", "D"], "answer": "Answer Text" },
+    { "question": "Q5?", "options": ["A", "B", "C", "D"], "answer": "Answer Text" }
   ]
-}`;
+}
+
+RULES:
+- Return ONLY the JSON object. No conversational text.
+- No markdown formatting.`;
 
         try {
             console.log("[GROQ] Sending request to llama-3.3-70b-versatile...");
             const response = await groq.chat.completions.create({
                 messages: [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: `Analyze this content: \n\n${chunk}` }
+                    { role: "user", content: `Content to expand: \n\n${chunk}` }
                 ],
                 model: "llama-3.3-70b-versatile",
-                temperature: 0.1,
+                temperature: 0.3,
+                max_tokens: 3000,
                 response_format: { type: "json_object" }
             });
 
             const rawContent = response.choices[0]?.message?.content || "";
-            console.log("[DEBUG] Raw Groq Response:", rawContent);
-
             let parsed = null;
             try {
                 parsed = extractStrictJSON(rawContent);
             } catch (jsonErr: any) {
-                console.error("[GROQ] JSON Extraction failed:", jsonErr.message);
+                console.error("[GROQ-JSON-FAILED] Error:", jsonErr.message);
+                if (retryCount > 0) return await this.analyzeChunk(chunk, retryCount - 1);
+                throw new Error("AI returned invalid format.");
             }
 
-            if (!parsed && retryCount > 0) {
-                console.warn("[GROQ] Invalid or null JSON received, retrying once...");
-                return await this.analyzeChunk(chunk, retryCount - 1);
-            }
+            if (!parsed) throw new Error("AI response could not be parsed.");
 
-            if (!parsed) {
-                throw new Error("Groq returned an unparsable response after retries.");
-            }
+            const validatedResult = {
+                summary: parsed.summary || "No summary generated.",
+                key_points: Array.isArray(parsed.key_points) ? parsed.key_points : [],
+                quiz: Array.isArray(parsed.quiz) ? parsed.quiz : []
+            };
 
-            return parsed;
+            console.log("[GROQ-OK] Analysis successful.");
+            return validatedResult;
         } catch (error: any) {
             console.error("[GROQ] Fatal Error:", error.message);
-            if (error.status === 401) throw new Error("Invalid Groq API Key.");
-            if (error.status === 429) throw new Error("Groq API rate limit exceeded.");
             throw new Error(`AI analysis failed: ${error.message}`);
         }
     }
 
     static mergeResults(results: any[]): any {
-        return {
-            summary: results.map(r => r.summary).join(" "),
-            key_points: [...new Set(results.flatMap(r => r.key_points || []))],
-            quiz: results.flatMap(r => r.quiz || [])
+        const merged = {
+            summary: results
+                .filter(r => r && typeof r.summary === 'string')
+                .map(r => r.summary)
+                .join("\n\n"),
+            key_points: results
+                .filter(r => r && Array.isArray(r.key_points))
+                .flatMap(r => r.key_points),
+            quiz: results
+                .filter(r => r && Array.isArray(r.quiz))
+                .flatMap(r => r.quiz)
         };
+
+        // Unique key points only
+        merged.key_points = [...new Set(merged.key_points)];
+
+        return merged;
     }
 }

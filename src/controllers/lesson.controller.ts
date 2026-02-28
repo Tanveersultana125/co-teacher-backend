@@ -10,6 +10,11 @@ const pdfParse = require('pdf-parse');
 
 export const createLesson = async (req: AuthRequest, res: Response) => {
     try {
+        const teacherId = req.user?.id;
+        if (!teacherId) {
+            return res.status(401).json({ error: "Unauthorized: No user session found." });
+        }
+
         console.log("Create Lesson Payload:", JSON.stringify(req.body, null, 2));
         let { title, subjectId, topicId, grade, objective, duration, activities, homework, resources, aiAssist, curriculum: board, subject: subjectName, topic: topicName, pdfText, unitDetails, numSessions } = req.body;
 
@@ -128,10 +133,6 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
             };
         }
 
-        const teacherId = req.user?.id;
-        if (!teacherId) {
-            return res.status(401).json({ error: "Unauthorized: No user context found." });
-        }
 
         // Generate dynamic diagram
         const diagramUrl = ImageService.generateDiagramUrl(topicName || title || "educational diagram");
@@ -181,9 +182,15 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
 
 export const getLessons = async (req: AuthRequest, res: Response) => {
     try {
+        const teacherId = req.user?.id;
+        if (!teacherId) {
+            console.warn("[Lessons] No teacherId in request, returning empty list");
+            return res.json([]);
+        }
+
         const { limit } = req.query;
         let query: any = db.collection('lessonPlans')
-            .where('teacherId', '==', req.user?.id);
+            .where('teacherId', '==', teacherId);
 
         if (limit) {
             query = query.limit(Number(limit));
