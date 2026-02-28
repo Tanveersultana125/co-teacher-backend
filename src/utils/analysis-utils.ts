@@ -2,6 +2,7 @@
 /**
  * Utility for safe chunking and cleaning of large text strings
  */
+export const MAX_ANALYSIS_CHARS = 50000; // ~15-20 pages max for stability
 
 export const cleanAndNormalizeText = (text: string): string => {
     return text
