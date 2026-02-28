@@ -9,10 +9,15 @@ const privateKey = process.env.FIREBASE_PRIVATE_KEY
 
 if (!admin.apps.length) {
     try {
+        const projectId = process.env.FIREBASE_PROJECT_ID;
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+        const hasKey = !!privateKey;
+        console.log(`[Firebase] Initializing project: ${projectId}, email: ${clientEmail}, hasKey: ${hasKey}`);
+
         admin.initializeApp({
             credential: admin.credential.cert({
-                projectId: process.env.FIREBASE_PROJECT_ID,
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                projectId: projectId,
+                clientEmail: clientEmail,
                 privateKey: privateKey,
             })
         });

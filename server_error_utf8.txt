@@ -1,0 +1,35 @@
+﻿[dotenv@17.3.1] injecting env (18) from .env -- tip: ΓÜÖ∩╕Å  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜÖ∩╕Å  specify custom .env file path with { path: '/custom/path/.env' }
+[Firebase] Initializing project: co-teacher-73cdc, email: firebase-adminsdk-fbsvc@co-teacher-73cdc.iam.gserviceaccount.com, hasKey: true
+Firebase Admin initialized successfully
+Firebase initialization module loaded
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒñû agentic secret storage: https://dotenvx.com/as2
+[INIT] Backend setting up with FRONTEND_URL: http://localhost:5173
+node.exe : (node:15896) 
+[DEP0040] 
+DeprecationWarning: The 
+`punycode` module is 
+deprecated. Please use a 
+userland alternative 
+instead.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: ((node  
+  :15896) [D...native ins   
+ tead.:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+(Use `node 
+--trace-deprecation ...` to 
+show where the warning was 
+created)
+Backend server is running on port 5000

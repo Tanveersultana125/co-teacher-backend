@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
+import './lib/firebase';
+console.log('Firebase initialization module loaded');
 
 import express from 'express';
 import path from 'path';

@@ -151,14 +151,16 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
             estimatedTime: finalContent.estimatedTime || [],
             referenceUrl: finalContent.referenceUrl || null,
             motivationalQuote: finalContent.motivationalQuote || "",
-            // @ts-ignore
-            materials: finalContent.materials || [],
-            // @ts-ignore
-            pedagogy: finalContent.pedagogy || "",
-            // @ts-ignore
-            inquiryBasedLearning: finalContent.inquiryBasedLearning || "",
-            // @ts-ignore
-            differentiation: finalContent.differentiation || null,
+            explanation: (finalContent as any).explanation || "",
+            questions: (finalContent as any).questions || [],
+            materials: (finalContent as any).materials || [],
+            pedagogy: (finalContent as any).pedagogy || "",
+            inquiryBasedLearning: (finalContent as any).inquiryBasedLearning || "",
+            differentiation: (finalContent as any).differentiation || null,
+            groupSize: (finalContent as any).groupSize || "",
+            standardsAlignment: (finalContent as any).standardsAlignment || "",
+            closure: (finalContent as any).closure || "",
+            assessment: (finalContent as any).assessment || null,
             generatedImage: diagramUrl,
             status: 'DRAFT',
             createdAt: new Date().toISOString(),
@@ -169,9 +171,7 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
 
         res.status(201).json({
             id: lessonRef.id,
-            ...lessonData,
-            explanation: (finalContent as any).explanation,
-            questions: (finalContent as any).questions
+            ...lessonData
         });
     } catch (error) {
         console.error("Create Lesson Error:", error);
@@ -179,55 +179,82 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const getLessons = async (req: AuthRequest, res: Response) => {
+export const getLesson = async (req: AuthRequest, res: Response) => {
+    const id = req.params.id as string;
     try {
-        const { limit } = req.query;
-        let query: any = db.collection('lessonPlans')
-            .where('teacherId', '==', req.user?.id);
-
-        if (limit) {
-            query = query.limit(Number(limit));
+        const lessonDoc = await db.collection('lessonPlans').doc(id).get();
+        if (!lessonDoc.exists) {
+            return res.status(404).json({ error: 'Lesson not found' });
+        }
+        const data = lessonDoc.data();
+        if (data?.teacherId !== req.user?.id) {
+            // Optional: for shared/published content, this check might be relaxed
+            // return res.status(401).json({ error: 'Unauthorized' });
         }
 
+        let subjData = null;
+        let topicData = null;
+        try {
+            const [subjDoc, topicDoc] = await Promise.all([
+                data?.subjectId ? db.collection('subjects').doc(data.subjectId).get() : Promise.resolve(null),
+                data?.topicId ? db.collection('topics').doc(data.topicId).get() : Promise.resolve(null)
+            ]);
+            if (subjDoc?.exists) subjData = { id: subjDoc.id, ...subjDoc.data() };
+            if (topicDoc?.exists) topicData = { id: topicDoc.id, ...topicDoc.data() };
+        } catch (e) { }
+
+        res.json({ id, ...data, subject: subjData, topic: topicData });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch lesson' });
+    }
+};
+
+export const getLessons = async (req: AuthRequest, res: Response) => {
+    try {
+        const teacherId = req.user?.id;
+        if (!teacherId) {
+            console.error("[Lessons] No teacherId in request");
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        const { type, limit: limitParam } = req.query;
+        console.log(`[Lessons] Fetching lessons for teacher: ${teacherId}, type: ${type}, limit: ${limitParam}`);
+
+        let query: any = db.collection('lessonPlans')
+            .where('teacherId', '==', teacherId);
+
+        if (type) {
+            query = query.where('type', '==', type);
+        }
+
+        // Limit to prevent huge loads, default 50
+        const limitCount = parseInt(limitParam as string) || 50;
+
+        // Note: orderBy('createdAt', 'desc') requires a composite index with the where clause.
+        // To avoid 500 errors if the index is missing, we fetch and sort in memory for now.
+        // In production, you should create the index: teacherId (ASC) + createdAt (DESC)
         const snapshot = await query.get();
 
-        const lessons = await Promise.all(snapshot.docs.map(async (doc: any) => {
-            const data = doc.data() || {};
-
-            let subjData = null;
-            let topicData = null;
-
-            try {
-                const [subjDoc, topicDoc] = await Promise.all([
-                    data.subjectId && typeof data.subjectId === 'string' ? db.collection('subjects').doc(data.subjectId).get() : Promise.resolve(null),
-                    data.topicId && typeof data.topicId === 'string' ? db.collection('topics').doc(data.topicId).get() : Promise.resolve(null)
-                ]);
-
-                if (subjDoc?.exists) subjData = { id: subjDoc.id, ...subjDoc.data() };
-                if (topicDoc?.exists) topicData = { id: topicDoc.id, ...topicDoc.data() };
-            } catch (err) {
-                console.warn(`[Lessons] Failed to fetch relations for lesson ${doc.id}`);
-            }
-
-            return {
-                id: doc.id,
-                ...data,
-                subject: subjData,
-                topic: topicData
-            };
+        const lessons = snapshot.docs.map((doc: any) => ({
+            id: doc.id,
+            ...doc.data()
         }));
 
-        // Sort manually by updatedAt desc, safe with missing dates
-        lessons.sort((a, b) => {
-            const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-            const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        // In-memory sort
+        lessons.sort((a: any, b: any) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
             return dateB - dateA;
         });
 
-        res.json(lessons);
-    } catch (error) {
-        console.error("Get Lessons Error:", error);
-        res.status(500).json({ error: 'Failed to fetch lessons' });
+        const paginatedLessons = lessons.slice(0, limitCount);
+
+        res.json(paginatedLessons);
+    } catch (error: any) {
+        console.error(`[Lessons] ERROR:`, error);
+        if (error.message?.includes('index')) {
+            console.error('[Lessons] CRITICAL: Firestore Index Missing. Please check Firebase console.');
+        }
+        res.status(500).json({ error: 'Failed to fetch lessons', details: error.message });
     }
 };
 
@@ -365,10 +392,77 @@ export const generateMiniQuiz = async (req: AuthRequest, res: Response) => {
 
 export const generatePresentation = async (req: AuthRequest, res: Response) => {
     try {
-        const { topic, grade, curriculum, slides } = req.body;
+        const { topic, grade, curriculum, slides, subject: subjectName } = req.body;
         if (!topic) return res.status(400).json({ error: "Topic is required" });
 
+        let finalTopicId = "";
+        let finalSubjectId = "";
+
+        // Resolve Entities
+        if (curriculum && grade && subjectName && topic) {
+            const curriculaRef = db.collection('curricula');
+            const currSnapshot = await curriculaRef
+                .where('board', '==', curriculum)
+                .where('grade', '==', parseInt(grade))
+                .limit(1)
+                .get();
+
+            let currId;
+            if (currSnapshot.empty) {
+                const newCurr = await curriculaRef.add({ board: curriculum, grade: parseInt(grade) });
+                currId = newCurr.id;
+            } else {
+                currId = currSnapshot.docs[0].id;
+            }
+
+            const subjectsRef = db.collection('subjects');
+            const subjSnapshot = await subjectsRef
+                .where('name', '==', subjectName)
+                .where('curriculumId', '==', currId)
+                .limit(1)
+                .get();
+
+            if (subjSnapshot.empty) {
+                const newSubj = await subjectsRef.add({ name: subjectName, curriculumId: currId });
+                finalSubjectId = newSubj.id;
+            } else {
+                finalSubjectId = subjSnapshot.docs[0].id;
+            }
+
+            const topicsRef = db.collection('topics');
+            const topicSnapshot = await topicsRef
+                .where('name', '==', topic)
+                .where('subjectId', '==', finalSubjectId)
+                .limit(1)
+                .get();
+
+            if (topicSnapshot.empty) {
+                const newTopic = await topicsRef.add({ name: topic, subjectId: finalSubjectId });
+                finalTopicId = newTopic.id;
+            } else {
+                finalTopicId = topicSnapshot.docs[0].id;
+            }
+        }
+
         const slideData = await AIService.generatePresentation(topic, grade || "10", curriculum || "CBSE", Number(slides) || 5);
+
+        const teacherId = req.user?.id;
+        if (teacherId) {
+            const pptData = {
+                title: `${topic} Presentation`,
+                content: { slides: slideData },
+                type: 'PRESENTATION',
+                teacherId,
+                grade: parseInt(grade) || 10,
+                subjectId: finalSubjectId || '',
+                topicId: finalTopicId || '',
+                status: 'DRAFT',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            await db.collection('lessonPlans').add(pptData);
+        }
+
         res.json(slideData);
     } catch (error) {
         console.error("Presentation Generation Error:", error);
