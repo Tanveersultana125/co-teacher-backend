@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { OCRService } from '../services/analysis-ocr.service';
 import { GroqAnalysisService } from '../services/groq-analysis.service';
-import { cleanAndNormalizeText, splitIntoChunks } from '../utils/analysis-utils';
+import { cleanAndNormalizeText, splitIntoChunks, MAX_ANALYSIS_CHARS } from '../utils/analysis-utils';
 import * as fs from 'fs';
 
 /**
@@ -17,59 +17,86 @@ export const handlePdfAnalysis = async (req: Request, res: Response, next: NextF
 
     try {
         // 1. Extract
-        console.log("[ANALYSIS] Extracting text from PDF...");
+        console.log("[ANALYSIS] Step 1: Extracting text from PDF...");
         let text = await OCRService.extractText(filePath);
-        console.log(`[ANALYSIS] Text extracted. Length: ${text.length} characters.`);
+        console.log(`[ANALYSIS] Step 1 OK: Initial extraction: ${text.length} characters.`);
 
-        // 2. Normalize
+        // 2. Normalize & Clean
+        console.log("[ANALYSIS] Step 2: Cleaning text...");
         text = cleanAndNormalizeText(text);
-        if (!text || text.length < 20) {
-            console.error("[ANALYSIS] Document seems empty or unreadable.");
-            throw new Error("Could not extract enough meaningful text to analyze. Make sure the PDF is not encrypted.");
+
+        if (!text || text.length < 50) {
+            console.error("[ANALYSIS] Step 2 FAIL: Document empty.");
+            throw new Error("This PDF seems to be empty or unreadable. Please make sure it contains clear text or images.");
         }
 
-        // 3. Chunk
-        const chunks = splitIntoChunks(text, 6000);
-        console.log(`[ANALYSIS] Processing ${chunks.length} chunks on Groq...`);
+        // 3. Smart Truncate
+        let isTruncated = false;
+        if (text.length > MAX_ANALYSIS_CHARS) {
+            console.warn(`[ANALYSIS] Step 3: Truncating text (${text.length} -> ${MAX_ANALYSIS_CHARS})`);
+            text = text.substring(0, MAX_ANALYSIS_CHARS);
+            isTruncated = true;
+        }
 
-        // 4. Analyze Sequentially
+        // 4. Chunk
+        console.log("[ANALYSIS] Step 4: Chunking text...");
+        const chunks = splitIntoChunks(text, 7000);
+        const maxChunks = 8;
+        const chunksToProcess = chunks.slice(0, maxChunks);
+
+        // 5. Analyze Sequentially
+        console.log(`[ANALYSIS] Step 5: Processing ${chunksToProcess.length} chunks on Groq...`);
         const chunkResults = [];
-        for (let i = 0; i < chunks.length; i++) {
-            console.log(`[ANALYSIS] Analyzing chunk ${i + 1}/${chunks.length}...`);
-            const result = await GroqAnalysisService.analyzeChunk(chunks[i]);
-            if (result) chunkResults.push(result);
+        for (let i = 0; i < chunksToProcess.length; i++) {
+            console.log(`[ANALYSIS] Analyzing chunk ${i + 1}/${chunksToProcess.length}...`);
+            try {
+                const result = await GroqAnalysisService.analyzeChunk(chunksToProcess[i]);
+                if (result) chunkResults.push(result);
+            } catch (chunkError: any) {
+                console.error(`[ANALYSIS] Chunk ${i + 1} failed:`, chunkError.message);
+                if (chunkResults.length === 0 && i === chunksToProcess.length - 1) throw chunkError;
+            }
         }
 
         if (chunkResults.length === 0) {
-            throw new Error("AI was unable to generate any insights from this document.");
+            throw new Error("AI was unable to generate any insights. Try a different file.");
         }
 
-        // 5. Merge
+        // 6. Merge
+        console.log("[ANALYSIS] Step 6: Merging and finalizing...");
         const finalData = GroqAnalysisService.mergeResults(chunkResults);
-        console.log("[ANALYSIS] Merged results successfully.");
 
-        // 6. Structured Flat Response
+        if (isTruncated) {
+            finalData.summary = finalData.summary + "\n\n(Note: Summary based on first part of large document.)";
+        }
+
+        // 7. Structured Flat Response
+        console.log("[ANALYSIS] Step 7: Sending success response.");
         return res.status(200).json({
             success: true,
-            summary: finalData.summary,
-            key_points: finalData.key_points,
-            quiz: finalData.quiz
+            summary: finalData.summary || "Summary generation failed.",
+            key_points: finalData.key_points || [],
+            quiz: finalData.quiz || [],
+            is_partial: isTruncated
         });
 
     } catch (error: any) {
-        console.error("[CONTROLLER ERROR] PDF Analysis Failed:", error.message);
+        console.error("!!! [FATAL PDF ANALYSIS ERROR] !!!");
+        console.error(error); // This prints the full stack trace
 
-        // Return structured error instead of falling through to global middleware if possible
         return res.status(error.status || 500).json({
             success: false,
-            message: error.message || "An unexpected error occurred during PDF analysis.",
-            dev_error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            message: error.message || "Internal Server Error during PDF analysis.",
+            debug: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     } finally {
-        // 6. Safe Cleanup
         if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log("[ANALYSIS] Temporary file deleted.");
+            try {
+                fs.unlinkSync(filePath);
+                console.log("[ANALYSIS] Final Cleanup: Temp file deleted.");
+            } catch (err) {
+                console.error("[ANALYSIS] Final Cleanup failed:", err);
+            }
         }
     }
 };
