@@ -69,12 +69,14 @@ export const generateAssignmentContent = async (req: AuthRequest, res: Response)
         const teacherId = req.user?.id;
         if (!teacherId) return res.status(401).json({ error: 'Unauthorized' });
 
+        const { title: aiTitle, instructions: aiInstructions, answerKey: aiAnswerKey, ...contentRest } = aiResponse;
+
         const assignmentData: any = {
-            title: aiResponse.title || `${assignmentType}: ${topic}`,
-            description: aiResponse.instructions?.[0] || `AI Generated ${assignmentType} on ${topic}`,
-            instructions: aiResponse.instructions || [],
-            content: aiResponse.content || {},
-            answerKey: aiResponse.answerKey || aiResponse.answers || aiResponse.assignmentAnswers || {},
+            title: aiTitle || `${assignmentType}: ${topic}`,
+            description: aiInstructions?.[0] || `AI Generated ${assignmentType} on ${topic}`,
+            instructions: aiInstructions || [],
+            content: Object.keys(contentRest).length > 0 ? contentRest : aiResponse,
+            answerKey: aiAnswerKey || aiResponse.answers || {},
             assignmentType: aiResponse.type || assignmentType,
             type: 'ASSIGNMENT',
             teacherId,
@@ -104,56 +106,65 @@ export const generateAssignmentContent = async (req: AuthRequest, res: Response)
 
 export const getAssignments = async (req: AuthRequest, res: Response) => {
     try {
+        const teacherId = req.user?.id;
+        console.log(`[Assignments] Fetching assignments for teacher: ${teacherId}`);
+
         // Fetch manual assignments
         const manualSnapshot = await db.collection('assignments')
-            .where('teacherId', '==', req.user?.id)
+            .where('teacherId', '==', teacherId)
             .get();
 
         // Fetch AI generated assignments (stored as lessonPlans)
+        // Note: Using two where clauses on different fields REQUIRES a composite index
+        // To avoid 500 errors if the index is missing, we fetch and filter in memory
         const aiSnapshot = await db.collection('lessonPlans')
-            .where('teacherId', '==', req.user?.id)
-            .where('type', '==', 'ASSIGNMENT')
+            .where('teacherId', '==', teacherId)
+            // .where('type', '==', 'ASSIGNMENT') // Moved to memory filter below
             .get();
 
         const manualAssignments = await Promise.all(manualSnapshot.docs.map(async (doc) => {
             const data = doc.data();
             let subjectData = null;
             if (data.subjectId) {
-                const subjectDoc = await db.collection('subjects').doc(data.subjectId).get();
-                if (subjectDoc.exists) subjectData = { id: subjectDoc.id, ...subjectDoc.data() };
+                try {
+                    const subjectDoc = await db.collection('subjects').doc(data.subjectId).get();
+                    if (subjectDoc.exists) subjectData = { id: subjectDoc.id, ...subjectDoc.data() };
+                } catch (e) { }
             }
 
-            // For manual assignments, submissions might be linked differently or not tailored yet
-            // Assuming basic structure for now
             return {
                 id: doc.id,
                 ...data,
                 createdAt: data.createdAt,
                 source: 'MANUAL',
                 subject: subjectData,
-                submissions: [] // Fetching submissions on list view might be heavy, optimize if needed
-            };
-        }));
-
-        const aiAssignments = await Promise.all(aiSnapshot.docs.map(async (doc) => {
-            const data = doc.data();
-            let subjectData = null;
-            if (data.subjectId) {
-                const subjectDoc = await db.collection('subjects').doc(data.subjectId).get();
-                if (subjectDoc.exists) subjectData = { id: subjectDoc.id, ...subjectDoc.data() };
-            }
-
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt,
-                source: 'AI',
-                subject: subjectData || { name: data.subjectName || 'General' },
-                description: data.description || "AI Generated Assignment",
-                dueDate: data.dueDate || new Date().toISOString(), // Fallback for AI assignments without due date
                 submissions: []
             };
         }));
+
+        const aiAssignments = await Promise.all(aiSnapshot.docs
+            .filter(doc => doc.data().type === 'ASSIGNMENT') // Memory filter to avoid composite index
+            .map(async (doc) => {
+                const data = doc.data();
+                let subjectData = null;
+                if (data.subjectId) {
+                    try {
+                        const subjectDoc = await db.collection('subjects').doc(data.subjectId).get();
+                        if (subjectDoc.exists) subjectData = { id: subjectDoc.id, ...subjectDoc.data() };
+                    } catch (e) { }
+                }
+
+                return {
+                    id: doc.id,
+                    ...data,
+                    createdAt: data.createdAt,
+                    source: 'AI',
+                    subject: subjectData || { name: data.subjectName || 'General' },
+                    description: data.description || "AI Generated Assignment",
+                    dueDate: data.dueDate || new Date().toISOString(),
+                    submissions: []
+                };
+            }));
 
         // Combine and Sort
         const allAssignments = [...manualAssignments, ...aiAssignments].sort((a, b) => {
@@ -163,9 +174,9 @@ export const getAssignments = async (req: AuthRequest, res: Response) => {
         });
 
         res.json(allAssignments);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to fetch assignments' });
+    } catch (error: any) {
+        console.error(`[Assignments] ERROR:`, error.message);
+        res.status(500).json({ error: 'Failed to fetch assignments', details: error.message });
     }
 };
 

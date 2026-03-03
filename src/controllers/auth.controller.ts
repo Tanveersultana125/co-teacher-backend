@@ -43,6 +43,7 @@ export const register = async (req: Request, res: Response) => {
 };
 
 export const login = async (req: Request, res: Response) => {
+    console.log(`[Auth] Login request received for email: ${req.body.email}`);
     try {
         const { email, password } = req.body;
 
@@ -72,8 +73,8 @@ export const login = async (req: Request, res: Response) => {
             user: { id: userDoc.id, email: userData.email, name: userData.name, role: userData.role }
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error("[Auth] Login error:", error);
+        res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) });
     }
 };
 

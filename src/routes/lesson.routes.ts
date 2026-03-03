@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getLessons, createLesson, updateLesson, deleteLesson, summarizeLesson, summarizeLessonPdf, extractVocabulary, generateMiniQuiz, generatePresentation } from '../controllers/lesson.controller';
+import { getLessons, getLesson, createLesson, updateLesson, deleteLesson, summarizeLesson, summarizeLessonPdf, extractVocabulary, generateMiniQuiz, generatePresentation } from '../controllers/lesson.controller';
 import { optionalAuthenticate, authenticate } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
 import { validate } from '../middleware/validate.middleware';
@@ -7,8 +7,9 @@ import { lessonSchema } from '../schemas/auth.schema';
 
 const router = Router();
 
-router.get('/', optionalAuthenticate, getLessons);
-router.post('/', authenticate, validate(lessonSchema), createLesson);
+router.get('/', authenticate, getLessons);
+router.get('/:id', authenticate, getLesson);
+router.post('/', authenticate, createLesson);
 router.put('/:id', authenticate, updateLesson);
 router.patch('/:id', authenticate, updateLesson);
 router.delete('/:id', authenticate, deleteLesson);
