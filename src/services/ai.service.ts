@@ -77,7 +77,7 @@ export class AIService {
         - Grade: ${grade}, Subject: ${subject}
         - Board: ${curriculum}, Time: ${duration} mins
         ${unitDetails ? "- Unit Context: " + unitDetails : ""}
-        ${pdfContext ? "- Reference Content: " + pdfContext.substring(0, 3000) : ""}
+        ${pdfContext ? "- Reference Content: " + pdfContext.substring(0, 100000) : ""}
 
         Structure Requirements:
         - Use a descriptive, encouraging, and step-by-step narrative style.
@@ -157,7 +157,7 @@ export class AIService {
     }
 
     static async generateDataAnalysis(csvData: string, analysisType: string) {
-        const prompt = `Analyze this CSV data (${analysisType}): ${csvData.substring(0, 10000)}. Return detailed JSON analysis.`;
+        const prompt = `Analyze this CSV data (${analysisType}): ${csvData.substring(0, 100000)}. Return detailed JSON analysis.`;
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {
@@ -287,7 +287,7 @@ export class AIService {
     }
 
     static async summarizeContent(content: string) {
-        const prompt = `Summarize the following educational content: ${content.substring(0, 8000)}.
+        const prompt = `Summarize the following educational content: ${content.substring(0, 100000)}.
         Return STRICT JSON format:
         {
             "overview": "High-level summary",
@@ -302,7 +302,7 @@ export class AIService {
     }
 
     static async extractVocabulary(text: string) {
-        const prompt = `Extract difficult vocabulary from: ${text.substring(0, 3000)}. Return JSON: { "vocabulary": [{"word": "", "definition": "", "example": ""}] }`;
+        const prompt = `Extract difficult vocabulary from: ${text.substring(0, 100000)}. Return JSON: { "vocabulary": [{"word": "", "definition": "", "example": ""}] }`;
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {

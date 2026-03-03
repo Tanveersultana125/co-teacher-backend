@@ -228,7 +228,7 @@ export const getLessons = async (req: AuthRequest, res: Response) => {
         }
 
         // Limit to prevent huge loads, default 50
-        const limitCount = parseInt(limitParam as string) || 50;
+        const limitCount = parseInt(limitParam as string) || 9999;
 
         // Note: orderBy('createdAt', 'desc') requires a composite index with the where clause.
         // To avoid 500 errors if the index is missing, we fetch and sort in memory for now.
