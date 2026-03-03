@@ -63,10 +63,14 @@ export class AIService {
 
         const isUrdu = lowerSubject.includes('urdu') || lowerTopic.includes('mazmoon') || lowerTopic.includes('navesi');
         const isHindi = lowerSubject.includes('hindi') || lowerSubject.includes('sanskrit');
+        const isTelugu = lowerSubject.includes('telugu');
+        const isRegional = isUrdu || isHindi || isTelugu || lowerSubject.includes('tamil') || lowerSubject.includes('kannada') || lowerSubject.includes('marathi') || lowerSubject.includes('bengali') || lowerSubject.includes('arabic');
 
         let languageInstruction = "Generate content in ENGLISH.";
         if (isUrdu) languageInstruction = "MANDATORY: Since this is an Urdu topic/subject, generate ALL content (title, objective, explanation, activities, etc.) in URDU SCRIPT (Perso-Arabic).";
         else if (isHindi) languageInstruction = "MANDATORY: Since this is a Hindi topic/subject, generate ALL content in HINDI (Devanagari script).";
+        else if (isTelugu) languageInstruction = "MANDATORY: Since this is a Telugu topic/subject, generate ALL content in TELUGU SCRIPT.";
+        else if (isRegional) languageInstruction = `MANDATORY: Since this is a ${subject} topic/subject, generate ALL content in ${subject} script.`;
 
         const prompt = `Act as an expert Senior Educator. Generate a professional, highly detailed, and narrative Lesson Plan for "${topic}".
         
@@ -170,7 +174,7 @@ export class AIService {
         Subject: ${subject}, Bloom's Taxonomy Level: ${bloomLevel}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Arabic, etc.), use that language's script.
+        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), you MUST generate the entire content (questions, options, etc.) in that specific language's script.
         - Otherwise, use ENGLISH.
         
         Return STRICT JSON format:
@@ -194,29 +198,37 @@ export class AIService {
     }
 
     static async generateMaterial(topic: string, type: string, grade?: string, subject?: string) {
-        const prompt = `Generate detailed educational material (type: ${type}) for "${topic}".
+        const lowerSubject = subject?.toLowerCase() || "";
+        const isUrdu = lowerSubject.includes('urdu');
+        const isHindi = lowerSubject.includes('hindi');
+        const isTelugu = lowerSubject.includes('telugu');
+        const isRegional = isUrdu || isHindi || isTelugu || lowerSubject.includes('tamil') || lowerSubject.includes('kannada') || lowerSubject.includes('marathi') || lowerSubject.includes('bengali') || lowerSubject.includes('arabic');
+
+        const prompt = `Generate highly detailed, comprehensive textbook-style educational material for "${topic}".
         Grade: ${grade || "General"}, Subject: ${subject || "General"}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Arabic, etc.), use that language's script.
+        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), you MUST generate the entire content in that specific language's script.
         - Otherwise, use ENGLISH.
         
         Return STRICT JSON format:
         {
             "title": "Comprehensive Topic Title",
             "chapterNumber": 1,
-            "intro": "Engaging introduction to the topic.",
+            "intro": "Write a very detailed, multi-paragraph introduction that sets the stage for the topic.",
+            "keyPoints": ["Summarize 5-7 most critical core concepts or facts here"],
             "sections": [
                 {
                     "heading": "Section Heading",
-                    "content": "In-depth explanatory text for this section.",
-                    "bulletPoints": ["Key fact 1", "Key fact 2", "Important detail"]
+                    "content": "Provide a very deep and thorough academic explanation (at least 3-4 paragraphs) for this sub-topic. Use a narrative and professional tone.",
+                    "bulletPoints": ["Detailed supporting fact 1", "Important definition", "Concept nuance"]
                 }
             ],
-            "learningObjectives": ["What student will learn 1", "What student will learn 2"],
-            "illustrationDescription": "Detailed description of a diagram that should illustrate this concept.",
-            "preparationTips": ["Study tip 1", "Self-study strategy"],
-            "reviewQuestions": ["Deep thinking question 1", "Practice question 2"],
+            "learningObjectives": ["Specific, measurable goal 1", "Goal 2"],
+            "illustrationDescription": "Write a very precise description for an illustrator to draw a diagram (like a labeled anatomical or flow diagram) related to this specific topic.",
+            "preparationTips": ["Practical Study Tip 1", "Exam Strategy 2", "Memory Hook 3"],
+            "reviewQuestions": ["Question 1", "Question 2", "Question 3", "Question 4", "Question 5", "Question 6", "Question 7"],
+            "answerKey": ["Complete Answer 1", "Complete Answer 2", "Complete Answer 3", "Complete Answer 4", "Complete Answer 5", "Complete Answer 6", "Complete Answer 7"],
             "footer": "${subject || 'General'} | Grade ${grade || ''} | Standard Curriculum"
         }`;
 
@@ -228,27 +240,42 @@ export class AIService {
     }
 
     static async generateAssignment(topic: string, grade: string, subject: string, type: string, difficulty: string, count: string) {
-        const isUrdu = subject.toLowerCase().includes('urdu');
-        const prompt = `Generate a high-quality assignment on "${topic}" for grade ${grade}.
-        Type: ${type}, Difficulty: ${difficulty}, Target Question Count: ${count}.
+        const lowerSubject = subject.toLowerCase();
+        const isUrdu = lowerSubject.includes('urdu');
+        const isHindi = lowerSubject.includes('hindi');
+        const isTelugu = lowerSubject.includes('telugu');
+        const prompt = `Generate a high-quality, professional academic assignment for "${topic}" (Grade ${grade}).
+        Subject: ${subject}, Difficulty: ${difficulty}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Arabic, etc.), use that language's script for EVERYTHING.
+        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), use that language's script for ALL content.
         - Otherwise, use ENGLISH.
         
         Return STRICT JSON format:
         {
-            "title": "${isUrdu ? 'تفویض' : topic + ' Assignment'}",
-            "assignmentQuestions": ["Question 1"],
-            "fillInTheBlanks": ["Statement with ____"],
-            "activityQuestions": ["Task 1"],
-            "projectIdeas": ["Idea 1"],
+            "title": "${isUrdu ? 'تفویض' : isHindi ? 'सत्रीय कार्य' : isTelugu ? 'అసైన్‌మెంట్' : topic + ' Assignment'}",
+            "intro": "Brief academic introduction to the topic for the assignment.",
+            "keyPoints": ["Crucial concept 1", "Important fact 2"],
+            "mcqs": [
+                {"question": "Professional MCQ Question 1", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": "Option B"}
+            ],
+            "matchFollowing": [
+                {"left": "Item 1", "right": "Matching Item 1"}
+            ],
+            "assignmentQuestions": ["Descriptive/Short Answer Question 1"],
+            "fillInTheBlanks": ["Important sentence with a ____"],
+            "activityQuestions": ["Practical hands-on task or experiment"],
+            "projectIdeas": ["A long-term project or research idea"],
             "answers": {
-                "assignmentQuestions": ["Answer 1"],
-                "fillInTheBlanks": ["Word 1"],
-                "activityQuestions": ["Guide 1"]
+                "mcqs": ["Option B"],
+                "matchFollowing": ["Item 1 -> Matching Item 1"],
+                "assignmentQuestions": ["Detailed answer to question 1"],
+                "fillInTheBlanks": ["Correct word for blank 1"],
+                "activityQuestions": ["Guide or expected outcome for activity"],
+                "projectIdeas": ["Basic outline for project"]
             }
         }`;
+
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {
@@ -257,28 +284,61 @@ export class AIService {
     }
 
     static async generateQuestionPaper(subject: string, grade: string, marks: number, difficulty: string, examType: string, syllabus: string) {
-        const isUrdu = subject.toLowerCase().includes('urdu');
-        const prompt = `Generate a ${marks}-marks ${examType} question paper for ${subject}, grade ${grade}. 
-        Difficulty: ${difficulty}. Syllabus Details: ${syllabus}.
+        const lowerSubject = subject.toLowerCase();
+        const isUrdu = lowerSubject.includes('urdu');
+        const isHindi = lowerSubject.includes('hindi');
+        const isTelugu = lowerSubject.includes('telugu');
+
+        const sectionAName = isUrdu ? 'حصہ اول (معروضی سوالات)' : isHindi ? 'खंड क (वस्तुनिष्ठ प्रश्न)' : isTelugu ? 'విభాగం A (మల్టిపుల్ ఛాయిస్)' : 'Section A (Objective Type)';
+        const sectionBName = isUrdu ? 'حصہ دوم (مختصر جوابات)' : isHindi ? 'खंड ख (लघु उत्तरीय प्रश्न)' : isTelugu ? 'విభాగం B (స్వల్ప సమాధానాలు)' : 'Section B (Short Answer Type)';
+        const sectionCName = isUrdu ? 'حصہ سوم (طویل جوابات)' : isHindi ? 'खंड ग (दीर्घ उत्तरीय प्रश्न)' : isTelugu ? 'విభాగం C (దీర్ఘ సమాధానాలు)' : 'Section C (Long Answer Type)';
+
+        const prompt = `Generate a professional ${marks}-marks ${examType} question paper for ${subject}, grade ${grade}.
+        Difficulty: ${difficulty}. Syllabus Coverage: ${syllabus}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Arabic, etc.), use that language's script for ALL text.
+        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), use that language's script for ALL text.
         - Otherwise, use ENGLISH.
         
+        Requirement:
+        - Include ${sectionAName} with MCQs (1 mark each).
+        - Include ${sectionBName} with Short Answers (3-5 marks each).
+        - Include ${sectionCName} with Long Answers (8-10 marks each).
+        - Provide a comprehensive Answer Key and Marking Scheme.
+
         Return STRICT JSON format:
         {
-            "title": "${isUrdu ? 'پرچہ' : examType + ' - ' + subject}",
+            "title": "${isUrdu ? 'پرچہ سوالات' : isHindi ? 'प्रश्न पत्र' : isTelugu ? 'ప్రశ్నపత్రం' : examType + ' Examination'} - ${subject}",
             "totalMarks": ${marks},
+            "difficulty": "${difficulty}",
             "sections": [
                 {
-                    "name": "${isUrdu ? 'حصہ اول' : 'Section A'}",
+                    "name": "${sectionAName}",
                     "questions": [
-                        {"text": "Actual question text here?", "marks": 1, "type": "MCQ", "options": ["Option 1", "Option 2", "Option 3", "Option 4"]}
+                        { "text": "MCQ Question Text", "marks": 1, "type": "MCQ", "options": ["Option 1", "Option 2", "Option 3", "Option 4"] }
+                    ]
+                },
+                {
+                    "name": "${sectionBName}",
+                    "questions": [
+                        { "text": "Short Answer Question Text", "marks": 5, "type": "Short" }
+                    ]
+                },
+                {
+                    "name": "${sectionCName}",
+                    "questions": [
+                        { "text": "Long Answer Question Text", "marks": 10, "type": "Long" }
                     ]
                 }
             ],
-            "answerKey": { "${isUrdu ? 'حصہ اول' : 'Section A'}": ["Correct Answers"] }
+            "answerKey": {
+                "${sectionAName}": ["Answer 1", "Answer 2"],
+                "${sectionBName}": ["Key answer points for 1", "Key points for 2"],
+                "${sectionCName}": ["Detailed expected response for 1"]
+            },
+            "markingScheme": "General evaluation guidelines: Correct steps for math, keyword matching for science/social."
         }`;
+
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {
@@ -302,7 +362,7 @@ export class AIService {
     }
 
     static async extractVocabulary(text: string) {
-        const prompt = `Extract difficult vocabulary from: ${text.substring(0, 100000)}. Return JSON: { "vocabulary": [{"word": "", "definition": "", "example": ""}] }`;
+        const prompt = `Extract difficult vocabulary from: ${text.substring(0, 100000)}. Return JSON: { "vocabulary": [{ "word": "", "definition": "", "example": "" }] }`;
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {
@@ -311,7 +371,7 @@ export class AIService {
     }
 
     static async generateMiniQuiz(text: string) {
-        const prompt = `Generate a 3-question mini-quiz. Return JSON: { "questions": [{"id": 1, "question": "", "options": [], "correctAnswer": ""}] }`;
+        const prompt = `Generate a 3-question mini-quiz. Return JSON: { "questions": [{ "id": 1, "question": "", "options": [], "correctAnswer": "" }] }`;
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {
@@ -320,8 +380,6 @@ export class AIService {
     }
 
     static async summarizeScannedPdf(buffer: Buffer) {
-        // Since we want to use Groq, we'd need OCR first. 
-        // For now, satisfy the compiler with an error message or basic fallback.
         throw new Error("Scanned PDF processing moved to new analysis route. Please use /api/analysis/pdf for better results.");
     }
 
