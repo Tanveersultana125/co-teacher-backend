@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { getLessons, getLesson, createLesson, updateLesson, deleteLesson, summarizeLesson, summarizeLessonPdf, extractVocabulary, generateMiniQuiz, generatePresentation } from '../controllers/lesson.controller';
 import { optionalAuthenticate, authenticate } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { lessonSchema } from '../schemas/auth.schema';
 
 const router = Router();
 
