@@ -6,8 +6,7 @@
     "scripts": {
         "start": "node dist/server.js",
         "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-        "build": "node node_modules/prisma/build/index.js generate --schema=src/prisma/schema.prisma && tsc",
-        "postinstall": "npm run build",
+        "build": "npx prisma generate --schema=src/prisma/schema.prisma && tsc",
         "seed": "ts-node src/prisma/seed.ts"
     },
     "dependencies": {
