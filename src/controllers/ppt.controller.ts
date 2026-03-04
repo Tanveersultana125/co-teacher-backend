@@ -184,9 +184,9 @@ export const generatePPTFile = async (req: AuthRequest, res: Response) => {
         }
 
         const fileName = `presentation_${Date.now()}.pptx`;
-        const tempPath = path.join(__dirname, '../../uploads', fileName);
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        const tempPath = path.join(uploadsDir, fileName);
 
-        const uploadsDir = path.join(__dirname, '../../uploads');
         if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
         }
