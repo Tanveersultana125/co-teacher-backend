@@ -160,8 +160,93 @@ export class AIService {
         }
     }
 
+    static async generatePPTSlides(topic: string) {
+        const prompt = `Generate a professional PowerPoint presentation structure.
+        Topic: ${topic}
+        Create 8 slides.
+        Return strictly in JSON format:
+        {
+          "slides":[
+            {
+              "title":"Slide Title",
+              "points":[
+                "short bullet point",
+                "short bullet point",
+                "short bullet point",
+                "short bullet point"
+              ],
+              "imageQuery":"detailed descriptive prompt for a professional educational illustration or photo"
+            }
+          ]
+        }
+        Rules:
+        - Each slide must contain 3-4 short bullet points
+        - Text must be presentation friendly
+        - First slide must be introduction
+        - Last slide must be conclusion
+        - imageQuery should be a detailed 10-15 word prompt describing the topic visually for an AI generator
+        - Do not include explanations outside JSON`;
+
+        try {
+            return await this.generateWithGroq(prompt);
+        } catch (error: any) {
+            console.error("AI PPT Generation Error:", error);
+            throw error;
+        }
+    }
+
     static async generateDataAnalysis(csvData: string, analysisType: string) {
-        const prompt = `Analyze this CSV data (${analysisType}): ${csvData.substring(0, 100000)}. Return detailed JSON analysis.`;
+        let schemaPrompt = "";
+
+        if (analysisType === "class_performance") {
+            schemaPrompt = `
+            Return JSON with this structure:
+            {
+                "summary": {
+                    "performingWell": [{"subject": "Math", "score": 85}],
+                    "struggling": [{"subject": "Science", "score": 45}]
+                },
+                "overallStats": { "average": 70, "highest": 95, "lowest": 30 },
+                "subjectInsights": {
+                    "SubjectName": {
+                        "average": 75,
+                        "highest": 98,
+                        "lowest": 40,
+                        "distribution": [{"range": "0-20", "count": 2}, {"range": "21-40", "count": 5}, {"range": "41-60", "count": 10}, {"range": "61-80", "count": 15}, {"range": "81-100", "count": 8}],
+                        "suggestions": ["suggestion 1", "suggestion 2"]
+                    }
+                },
+                "improvementPlan": ["Step 1", "Step 2"]
+            }`;
+        } else if (analysisType === "student_performance") {
+            schemaPrompt = `
+            Return JSON with this structure:
+            {
+                "toppers": [{"name": "Student A", "percentage": 95, "rank": 1}],
+                "struggling": [{"name": "Student B", "percentage": 35, "needsHelpIn": "Math"}],
+                "allStudents": [{"name": "Student A", "total": 450, "percentage": 90, "grade": "A", "remarks": "Excellent"}]
+            }`;
+        } else if (analysisType === "attendance_analysis") {
+            schemaPrompt = `
+            Return JSON with this structure:
+            {
+                "overallAttendance": 85,
+                "correlation": "High attendance leads to better scores",
+                "lowAttendanceList": [{"name": "Student C", "attendance": 60, "performanceStatus": "Poor"}],
+                "insights": ["Insight 1", "Insight 2"]
+            }`;
+        }
+
+        const prompt = `Analyze this student data (CSV format):
+        ${csvData.substring(0, 50000)}
+        
+        Task: Perform a ${analysisType.split('_').join(' ')} and provide deep insights.
+        
+        Requirements:
+        ${schemaPrompt}
+        - Return ONLY valid JSON.
+        - Be accurate and calculate real averages/stats from the data provided.`;
+
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {
@@ -371,7 +456,28 @@ export class AIService {
     }
 
     static async generateMiniQuiz(text: string) {
-        const prompt = `Generate a 3-question mini-quiz. Return JSON: { "questions": [{ "id": 1, "question": "", "options": [], "correctAnswer": "" }] }`;
+        const isUrdu = /[\u0600-\u06FF]/.test(text);
+        const isHindi = /[\u0900-\u097F]/.test(text);
+
+        const prompt = `Generate a 3-question mini-quiz BASED STRICTLY on the following content:
+        
+        Content: ${text.substring(0, 50000)}
+        
+        Requirements:
+        1. All questions must be derived from the content provided above.
+        2. ${isUrdu ? "MANDATORY: Since the content is in Urdu, generate ALL questions and options in URDU SCRIPT." : isHindi ? "MANDATORY: Since the content is in Hindi, generate ALL questions and options in HINDI." : "Generate content in English."}
+        
+        Return STRICT JSON format:
+        {
+            "questions": [
+                {
+                    "id": 1,
+                    "question": "Question text here",
+                    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+                    "correctAnswer": "Exact string of the correct option"
+                }
+            ]
+        }`;
         try {
             return await this.generateWithGroq(prompt);
         } catch (error) {

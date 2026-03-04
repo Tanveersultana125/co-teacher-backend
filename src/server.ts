@@ -23,6 +23,7 @@ import parentDashboardRoutes from './routes/parent_dashboard.routes';
 import studentRoutes from './routes/student.routes';
 import analysisRoutes from './routes/analysis.routes';
 import pdfAnalysisRoutes from './routes/pdf-analysis.routes';
+import pptRoutes from './routes/ppt.routes';
 import { globalErrorHandler } from './middleware/error.middleware';
 
 // Redundant call removed
@@ -60,6 +61,7 @@ app.use('/api/student-dashboard', studentDashboardRoutes);
 app.use('/api/parent-dashboard', parentDashboardRoutes);
 app.use('/api/ai', analysisRoutes);
 app.use('/api/analysis', pdfAnalysisRoutes);
+app.use('/api/ppt', pptRoutes);
 
 // Production-Grade Global Error Handler
 app.use(globalErrorHandler);

@@ -6,38 +6,41 @@ export class ImageService {
     static async getRandomImage(query: string): Promise<string> {
         const apiKey = process.env.PEXELS_API_KEY;
 
-        if (!apiKey || apiKey === 'your_pexels_api_key_here') {
-            console.warn("[ImageService] Pexels API Key is missing or default. using fallback.");
-            return `https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1600&q=80`;
-        }
+        // Validation: Pexels keys are alphanumeric. sk- or gsk_ are OpenAI/Groq keys.
+        const isValidPexelsKey = apiKey &&
+            apiKey !== 'your_pexels_api_key_here' &&
+            !apiKey.startsWith('sk-') &&
+            !apiKey.startsWith('gsk_');
 
-        try {
-            console.log(`[ImageService] Searching Pexels for: ${query}`);
-            let response = await axios.get(PEXELS_URL, {
-                params: { query, per_page: 1, orientation: 'landscape' },
-                headers: { Authorization: apiKey }
-            });
-
-            // If no results for specific query, try a simpler version (first two words)
-            if (!response.data.photos || response.data.photos.length === 0) {
-                const simpleQuery = query.split(' ').slice(0, 2).join(' ');
-                console.log(`[ImageService] No results for "${query}", trying simpler: "${simpleQuery}"`);
-                response = await axios.get(PEXELS_URL, {
-                    params: { query: simpleQuery, per_page: 1, orientation: 'landscape' },
+        if (isValidPexelsKey) {
+            try {
+                console.log(`[ImageService] Searching Pexels for: ${query}`);
+                const response = await axios.get(PEXELS_URL, {
+                    params: { query, per_page: 1, orientation: 'landscape' },
                     headers: { Authorization: apiKey }
                 });
-            }
 
-            if (response.data.photos && response.data.photos.length > 0) {
-                const url = response.data.photos[0].src.large2x;
-                console.log(`[ImageService] Success: ${url}`);
-                return url;
+                if (response.data.photos && response.data.photos.length > 0) {
+                    const url = response.data.photos[0].src.large2x;
+                    console.log(`[ImageService] Pexels Success: ${url}`);
+                    return url;
+                }
+            } catch (error: any) {
+                console.error("[ImageService] Pexels Error:", error.message);
             }
-        } catch (error: any) {
-            console.error("[ImageService] Pexels Error:", error.response?.data || error.message);
+        } else {
+            console.warn("[ImageService] No valid Pexels key found. Falling back to AI Visuals.");
         }
 
-        return `https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=1600&q=80`;
+        // Secondary Fallback: Pollinations AI (Generates highly specific visuals)
+        try {
+            console.log(`[ImageService] Using AI fallback for: ${query}`);
+            const seed = Math.floor(Math.random() * 1000000);
+            return `https://image.pollinations.ai/prompt/${encodeURIComponent(query + ", educational style, high quality")},?width=1024&height=768&seed=${seed}&nologo=1&model=flux`;
+        } catch (e) {
+            // Final Fallback: Stable static placeholder
+            return `https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=1600&q=80`;
+        }
     }
 
     static generateDiagramUrl(description: string): string {
