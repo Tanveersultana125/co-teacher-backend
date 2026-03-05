@@ -172,7 +172,7 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
             topicId: finalTopicId || '',
             objective: finalContent.objective,
             duration: parseInt(duration) || 45,
-            activities: Array.isArray(finalContent.activities) ? finalContent.activities : (finalContent.activities ? JSON.parse(finalContent.activities) : []),
+            activities: Array.isArray(finalContent.activities) ? finalContent.activities : (typeof finalContent.activities === 'string' ? (() => { try { return JSON.parse(finalContent.activities as string); } catch { return []; } })() : (finalContent.activities ? [finalContent.activities] : [])),
             homework: finalContent.homework || '',
             resources: finalContent.resources || '',
             teachingStrategies: finalContent.teachingStrategies || [],
@@ -255,13 +255,14 @@ export const getLessons = async (req: AuthRequest, res: Response) => {
             query = query.where('type', '==', type);
         }
 
-        // Limit to prevent huge loads, default 50
-        const limitCount = parseInt(limitParam as string) || 9999;
+        // Limit to prevent huge loads and excessive Firestore reads, default 50
+        const limitCount = parseInt(limitParam as string) || 50;
 
         // Note: orderBy('createdAt', 'desc') requires a composite index with the where clause.
         // To avoid 500 errors if the index is missing, we fetch and sort in memory for now.
         // In production, you should create the index: teacherId (ASC) + createdAt (DESC)
-        const snapshot = await query.get();
+        // Apply server-side limit to save Firestore reads (critical for quota management)
+        const snapshot = await query.limit(limitCount * 2).get(); // Fetch 2x to allow sorting, but cap reads
 
         const lessons = snapshot.docs.map((doc: any) => ({
             id: doc.id,

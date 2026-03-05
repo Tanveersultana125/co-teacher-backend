@@ -21,26 +21,32 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 
         console.log(`[Dashboard] Fetching stats for teacher: ${teacherId}`);
 
-        // Individual try-catches to identify which collection fails
+        // Use limits on all queries to drastically reduce Firestore reads
         let studentsCount = 0;
         let lessonsCount = 0;
         let presentCount = 0;
         let attendanceTotal = 0;
 
         try {
-            const studentsSnap = await db.collection('students').get();
+            // OPTIMIZED: limit to 500 to avoid reading entire collection
+            const studentsSnap = await db.collection('students').limit(500).get();
             studentsCount = studentsSnap.size;
         } catch (e: any) { console.error("[Dashboard] Students fetch failed:", e.message); }
 
         try {
-            const lessonsSnap = await db.collection('lessonPlans').where('teacherId', '==', teacherId).get();
+            // OPTIMIZED: limit to 200 lessons per teacher - sufficient for dashboard count
+            const lessonsSnap = await db.collection('lessonPlans')
+                .where('teacherId', '==', teacherId)
+                .limit(200)
+                .get();
             lessonsCount = lessonsSnap.size;
         } catch (e: any) { console.error("[Dashboard] Lessons fetch failed:", e.message); }
 
         try {
+            // OPTIMIZED: only need last 50 records for attendance rate
             const attendanceSnap = await db.collection('attendance')
                 .where('teacherId', '==', teacherId)
-                .limit(100)
+                .limit(50)
                 .get();
 
             const attendanceRecords = attendanceSnap.docs.map(doc => doc.data());

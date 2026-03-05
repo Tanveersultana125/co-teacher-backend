@@ -116,17 +116,17 @@ export const getAssignments = async (req: AuthRequest, res: Response) => {
         const teacherId = req.user?.id;
         console.log(`[Assignments] Fetching assignments for teacher: ${teacherId}`);
 
-        // Fetch manual assignments
+        // Fetch manual assignments - OPTIMIZED with limit
         const manualSnapshot = await db.collection('assignments')
             .where('teacherId', '==', teacherId)
+            .limit(100)
             .get();
 
         // Fetch AI generated assignments (stored as lessonPlans)
-        // Note: Using two where clauses on different fields REQUIRES a composite index
-        // To avoid 500 errors if the index is missing, we fetch and filter in memory
+        // OPTIMIZED: limit to 100 to drastically reduce Firestore reads
         const aiSnapshot = await db.collection('lessonPlans')
             .where('teacherId', '==', teacherId)
-            // .where('type', '==', 'ASSIGNMENT') // Moved to memory filter below
+            .limit(100)
             .get();
 
         const manualAssignments = await Promise.all(manualSnapshot.docs.map(async (doc) => {
