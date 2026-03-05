@@ -1,4 +1,8 @@
-import { PrismaClient, BoardType } from '@prisma/client';
+// NOTE: This seed file is for legacy Prisma setup (now using Firestore).
+// BoardType is defined locally here since Prisma client is not generated in this project.
+type BoardType = 'CBSE' | 'ICSE' | 'SSC';
+// PrismaClient kept for compatibility but not actively used - app runs on Firestore
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
