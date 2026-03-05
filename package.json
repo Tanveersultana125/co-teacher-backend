@@ -13,6 +13,7 @@
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
         "@prisma/client": "^6.2.1",
+        "@types/node": "^22.19.7",
         "axios": "^1.13.5",
         "bcryptjs": "^3.0.3",
         "cloudinary": "^2.9.0",
@@ -22,17 +23,16 @@
         "firebase-admin": "^13.6.0",
         "groq-sdk": "^0.37.0",
         "jsonwebtoken": "^9.0.3",
-        "multer": "^2.0.2",
+        "multer": "^2.1.1",
         "nodemailer": "^8.0.1",
-        "pdf-parse": "^1.1.1",
+        "pdf-parse": "^1.1.4",
         "pdfkit": "^0.17.2",
         "pptxgenjs": "^4.0.1",
         "prisma": "^6.2.1",
         "tesseract.js": "^5.0.0",
         "typescript": "^5.8.3",
         "xlsx": "^0.18.5",
-        "zod": "^3.25.76",
-        "@types/node": "^22.19.7"
+        "zod": "^3.25.76"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",

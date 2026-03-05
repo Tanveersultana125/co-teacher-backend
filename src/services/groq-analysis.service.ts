@@ -6,10 +6,20 @@ import { extractStrictJSON } from "../utils/analysis-utils";
  */
 export class GroqAnalysisService {
     private static getClient() {
-        const apiKey = process.env.GROQ_API_KEY;
+        // Use dedicated summary key if available, else fallback to standard key
+        const summaryKey = process.env.GROQ_SUMMARY_KEY;
+        const standardKey = process.env.GROQ_API_KEY;
+
+        const apiKey = (summaryKey && summaryKey.trim().length > 10) ? summaryKey.trim() : standardKey;
+
         if (!apiKey || apiKey.length < 5) {
-            throw new Error("GROQ_API_KEY is missing in .env.");
+            throw new Error("GROQ API Key is missing. Please add GROQ_SUMMARY_KEY or GROQ_API_KEY in .env.");
         }
+
+        const keyType = (apiKey === summaryKey) ? "SUMMARY_KEY" : "STANDARD_KEY";
+        const maskedKey = apiKey.substring(0, 6) + "..." + apiKey.substring(apiKey.length - 4);
+        console.log(`[GROQ] Using ${keyType}: ${maskedKey}`);
+
         return new Groq({ apiKey });
     }
 
@@ -56,13 +66,13 @@ RULES:
 - No markdown formatting.`;
 
         try {
-            console.log("[GROQ] Sending request to llama-3.3-70b-versatile...");
+            console.log("[GROQ] Sending request to llama-3.1-8b-instant...");
             const response = await groq.chat.completions.create({
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: `Content to expand: \n\n${chunk}` }
                 ],
-                model: "llama-3.3-70b-versatile",
+                model: "llama-3.1-8b-instant",
                 temperature: 0.3,
                 max_tokens: 3000,
                 response_format: { type: "json_object" }

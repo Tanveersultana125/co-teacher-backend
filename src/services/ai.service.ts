@@ -391,15 +391,23 @@ export class AIService {
         const prompt = `Generate a professional ${marks}-marks ${examType} question paper for ${subject}, grade ${grade}.
         Difficulty: ${difficulty}. Syllabus Coverage: ${syllabus}.
         
+        CRITICAL REQUIREMENT:
+        - The TOTAL sum of marks for all questions MUST BE EXACTLY ${marks}.
+        - Do not just provide 1-2 questions per section. Calculate the number of questions based on marks.
+        
+        Recommended Distribution (Adjust slightly to reach exactly ${marks} if needed):
+        1. ${sectionAName}: MCQs (1 mark each) - Total ~20% of total marks.
+        2. ${sectionBName}: Short Answer Type (3 or 5 marks each) - Total ~40% of total marks.
+        3. ${sectionCName}: Long Answer Type (8 or 10 marks each) - Total ~40% of total marks.
+        
         Language Instructions:
         - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), use that language's script for ALL text.
         - Otherwise, use ENGLISH.
         
-        Requirement:
-        - Include ${sectionAName} with MCQs (1 mark each).
-        - Include ${sectionBName} with Short Answers (3-5 marks each).
-        - Include ${sectionCName} with Long Answers (8-10 marks each).
-        - Provide a comprehensive Answer Key and Marking Scheme.
+        Deliverables:
+        - Full Question Paper with calculated marks.
+        - Comprehensive Answer Key.
+        - Step-wise Marking Scheme.
 
         Return STRICT JSON format:
         {
@@ -410,28 +418,26 @@ export class AIService {
                 {
                     "name": "${sectionAName}",
                     "questions": [
-                        { "text": "MCQ Question Text", "marks": 1, "type": "MCQ", "options": ["Option 1", "Option 2", "Option 3", "Option 4"] }
+                        { "id": "1", "text": "Question...", "marks": 1, "type": "MCQ", "options": ["A", "B", "C", "D"] }
                     ]
                 },
                 {
                     "name": "${sectionBName}",
                     "questions": [
-                        { "text": "Short Answer Question Text", "marks": 5, "type": "Short" }
+                        { "id": "11", "text": "Question...", "marks": 5, "type": "Short" }
                     ]
                 },
                 {
                     "name": "${sectionCName}",
                     "questions": [
-                        { "text": "Long Answer Question Text", "marks": 10, "type": "Long" }
+                        { "id": "21", "text": "Question...", "marks": 10, "type": "Long" }
                     ]
                 }
             ],
             "answerKey": {
-                "${sectionAName}": ["Answer 1", "Answer 2"],
-                "${sectionBName}": ["Key answer points for 1", "Key points for 2"],
-                "${sectionCName}": ["Detailed expected response for 1"]
+                "Section Name": ["Answer 1", "Answer 2"]
             },
-            "markingScheme": "General evaluation guidelines: Correct steps for math, keyword matching for science/social."
+            "markingScheme": "Evaluation guidelines..."
         }`;
 
         try {
