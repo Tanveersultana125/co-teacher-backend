@@ -10,7 +10,7 @@ export const cleanAndNormalizeText = (text: string): string => {
         .replace(/\\n/g, '\n')
         .replace(/\\r/g, '')
         .replace(/\s{3,}/g, ' ')
-        .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters
+        // NOTE: Do NOT strip non-ASCII — Urdu, Hindi, Arabic text must be preserved
         .trim();
 };
 

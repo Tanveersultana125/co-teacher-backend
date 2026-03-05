@@ -70,7 +70,14 @@ export const generateMaterial = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        if (!tName) return res.status(400).json({ error: 'Topic name is required' });
+        if (!tName) {
+            if (req.body.pdfText) {
+                tName = "Context from PDF";
+                sName = sName || "General";
+            } else {
+                return res.status(400).json({ error: 'Topic name is required' });
+            }
+        }
 
         const aiData = await AIService.generateMaterial(tName, type, grade, sName);
 

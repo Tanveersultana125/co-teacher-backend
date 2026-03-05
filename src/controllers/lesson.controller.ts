@@ -16,7 +16,7 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
         }
 
         console.log("Create Lesson Payload:", JSON.stringify(req.body, null, 2));
-        let { title, subjectId, topicId, grade, objective, duration, activities, homework, resources, aiAssist, curriculum: board, subject: subjectName, topic: topicName, pdfText, unitDetails, numSessions } = req.body;
+        let { title, subjectId, topicId, grade, objective, duration, activities, homework, resources, aiAssist, curriculum: board, subject: subjectName, topic: topicName, pdfText, unitDetails, numSessions, language } = req.body;
 
         let finalContent = { objective, activities, homework, resources, teachingStrategies: [], assessmentMethods: [], estimatedTime: [], referenceUrl: null, motivationalQuote: "" };
         let finalSubjectId = subjectId;
@@ -89,20 +89,40 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
             }
 
             if (!tName || !sName) {
-                return res.status(400).json({ error: 'Invalid Subject or Topic context' });
+                if (pdfText) {
+                    tName = tName || "Context from PDF";
+                    sName = sName || "General";
+                } else {
+                    return res.status(400).json({ error: 'Invalid Subject or Topic context' });
+                }
             }
 
-            console.log("Calling AI Service...");
-            const aiData = await AIService.generateLessonPlan(tName, grade || "10", sName, pdfText, unitDetails, duration, numSessions, board || "Standard");
+            console.log(`Calling AI Service (Language: ${language || 'auto'})...`);
+            const aiData = await AIService.generateLessonPlan(tName, grade || "10", sName, pdfText, unitDetails, duration, numSessions, board || "Standard", language);
 
             const searchQuery = aiData.videoSearchQuery || tName;
-            const finalQuery = searchQuery.toLowerCase().includes(tName.toLowerCase())
+            let finalQuery = searchQuery.toLowerCase().includes(tName.toLowerCase())
                 ? searchQuery
                 : `${tName} ${searchQuery}`;
 
+            // Append language suffix so YouTube returns regional-language videos
+            const lowerSName = sName?.toLowerCase() || '';
+            const lowerLang = (language || '').toLowerCase();
+            const isUrduLesson = lowerLang === 'urdu' || lowerSName.includes('urdu') || /[\u0600-\u06FF]/.test(tName);
+            const isHindiLesson = lowerLang === 'hindi' || lowerSName.includes('hindi') || /[\u0900-\u097F]/.test(tName);
+            const isTeluguLesson = lowerLang === 'telugu' || lowerSName.includes('telugu') || /[\u0C00-\u0C7F]/.test(tName);
+            const isTamilLesson = lowerSName.includes('tamil');
+            const isKannadaLesson = lowerSName.includes('kannada');
+
+            if (isUrduLesson) finalQuery += ' in Urdu';
+            else if (isHindiLesson) finalQuery += ' in Hindi';
+            else if (isTeluguLesson) finalQuery += ' in Telugu';
+            else if (isTamilLesson) finalQuery += ' in Tamil';
+            else if (isKannadaLesson) finalQuery += ' in Kannada';
+
             finalContent = {
                 objective: aiData.objective,
-                activities: JSON.stringify(aiData.activities),
+                activities: aiData.activities, // keep as array, not stringified
                 homework: aiData.homework,
                 resources: Array.isArray(aiData.resources) ? aiData.resources.join(', ') : aiData.resources,
                 // @ts-ignore
@@ -129,7 +149,15 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
                 // @ts-ignore
                 inquiryBasedLearning: aiData.inquiryBasedLearning,
                 // @ts-ignore
-                differentiation: aiData.differentiation
+                differentiation: aiData.differentiation,
+                // @ts-ignore
+                groupSize: aiData.groupSize,
+                // @ts-ignore
+                standardsAlignment: aiData.standardsAlignment,
+                // @ts-ignore
+                closure: aiData.closure,
+                // @ts-ignore
+                assessment: aiData.assessment
             };
         }
 
@@ -144,7 +172,7 @@ export const createLesson = async (req: AuthRequest, res: Response) => {
             topicId: finalTopicId || '',
             objective: finalContent.objective,
             duration: parseInt(duration) || 45,
-            activities: typeof finalContent.activities === 'string' ? finalContent.activities : JSON.stringify(finalContent.activities),
+            activities: Array.isArray(finalContent.activities) ? finalContent.activities : (finalContent.activities ? JSON.parse(finalContent.activities) : []),
             homework: finalContent.homework || '',
             resources: finalContent.resources || '',
             teachingStrategies: finalContent.teachingStrategies || [],

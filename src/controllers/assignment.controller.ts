@@ -60,11 +60,18 @@ export const generateAssignmentContent = async (req: AuthRequest, res: Response)
             }
         }
 
+        if (!tName || !sName) {
+            if (req.body.pdfText) {
+                tName = tName || "Context from PDF";
+                sName = sName || "General";
+            }
+        }
+
         const assignmentType = req.body.assignmentType || "Homework";
         const difficultyLevel = req.body.difficultyLevel || "Medium";
         const questionCount = req.body.questionCount || "5";
 
-        const aiResponse = await AIService.generateAssignment(topic, grade, subject, assignmentType, difficultyLevel, questionCount);
+        const aiResponse = await AIService.generateAssignment(tName, grade, sName, assignmentType, difficultyLevel, questionCount);
 
         const teacherId = req.user?.id;
         if (!teacherId) return res.status(401).json({ error: 'Unauthorized' });

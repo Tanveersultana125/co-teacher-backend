@@ -57,25 +57,26 @@ export class AIService {
         }
     }
 
-    static async generateLessonPlan(topic: string, grade: string, subject: string, pdfContext: string = "", unitDetails: string = "", duration: string = "45", numSessions: string = "1", curriculum: string = "Standard") {
+    static async generateLessonPlan(topic: string, grade: string, subject: string, pdfContext: string = "", unitDetails: string = "", duration: string = "45", numSessions: string = "1", curriculum: string = "Standard", language: string = "auto") {
         const lowerTopic = topic.toLowerCase();
         const lowerSubject = subject.toLowerCase();
 
-        const isUrdu = lowerSubject.includes('urdu') || lowerTopic.includes('mazmoon') || lowerTopic.includes('navesi');
-        const isHindi = lowerSubject.includes('hindi') || lowerSubject.includes('sanskrit');
-        const isTelugu = lowerSubject.includes('telugu');
+        const isUrdu = language === "Urdu" || (language === "auto" && (lowerSubject.includes('urdu') || lowerTopic.includes('mazmoon') || lowerTopic.includes('navesi') || /[\u0600-\u06FF]/.test(topic)));
+        const isHindi = language === "Hindi" || (language === "auto" && (lowerSubject.includes('hindi') || lowerSubject.includes('sanskrit') || /[\u0900-\u097F]/.test(topic)));
+        const isTelugu = language === "Telugu" || (language === "auto" && (lowerSubject.includes('telugu') || /[\u0C00-\u0C7F]/.test(topic)));
         const isRegional = isUrdu || isHindi || isTelugu || lowerSubject.includes('tamil') || lowerSubject.includes('kannada') || lowerSubject.includes('marathi') || lowerSubject.includes('bengali') || lowerSubject.includes('arabic');
 
         let languageInstruction = "Generate content in ENGLISH.";
-        if (isUrdu) languageInstruction = "MANDATORY: Since this is an Urdu topic/subject, generate ALL content (title, objective, explanation, activities, etc.) in URDU SCRIPT (Perso-Arabic).";
-        else if (isHindi) languageInstruction = "MANDATORY: Since this is a Hindi topic/subject, generate ALL content in HINDI (Devanagari script).";
-        else if (isTelugu) languageInstruction = "MANDATORY: Since this is a Telugu topic/subject, generate ALL content in TELUGU SCRIPT.";
-        else if (isRegional) languageInstruction = `MANDATORY: Since this is a ${subject} topic/subject, generate ALL content in ${subject} script.`;
+        if (isUrdu) languageInstruction = "MANDATORY: Since this is an Urdu topic/subject, generate ALL content (title, objective, explanation, activities, assessment, questions, etc.) in URDU SCRIPT (Perso-Arabic). Be extremely verbose and detailed.";
+        else if (isHindi) languageInstruction = "MANDATORY: Since this is a Hindi topic/subject, generate ALL content in HINDI (Devanagari script). Be comprehensive and academic.";
+        else if (isTelugu) languageInstruction = "MANDATORY: Since this is a Telugu topic/subject, generate ALL content (title, objectives, explanation, activities, Assessment, homework, teacher tips, etc.) STRICTLY in TELUGU SCRIPT. DO NOT use English for descriptions. Be very detailed, use 3-4 sections for the explanation, and ensure 2-3 distinct activities are provided.";
+        else if (isRegional) languageInstruction = `MANDATORY: Since this is a ${subject} topic/subject, generate ALL content in the native script of ${subject}.`;
 
         const prompt = `Act as an expert Senior Educator. Generate a professional, highly detailed, and narrative Lesson Plan for "${topic}".
         
         Language Instructions:
         ${languageInstruction}
+        MANDATORY: 'videoSearchQuery' and 'visualAids' prompts MUST be in ENGLISH even if the lesson content is in a regional language. This is for search engine compatibility.
         
         Details:
         - Grade: ${grade}, Subject: ${subject}
@@ -85,8 +86,8 @@ export class AIService {
 
         Structure Requirements:
         - Use a descriptive, encouraging, and step-by-step narrative style.
-        - 'explanation' must be a multi-paragraph, high-quality guide for the teacher.
-        - 'activities' should have clear, pedagogical steps.
+        - 'explanation' must be a multi-paragraph, high-quality guide for the teacher (at least 500 words).
+        - 'activities' should have clear, pedagogical steps and be engaging.
 
         Return strictly valid JSON:
         {
@@ -126,7 +127,8 @@ export class AIService {
                 {"section": "Practice", "time": "40%"},
                 {"section": "Closure", "time": "10%"}
             ],
-            "videoSearchQuery": "Keywords for educational video",
+            "videoSearchQuery": "Keywords for educational video (MUST BE IN ENGLISH)",
+            "visualAids": ["English description for image 1", "English description for image 2", "English description for image 3"],
             "motivationalQuote": "An inspiring quote for this lesson."
         }`;
 
@@ -261,13 +263,16 @@ export class AIService {
         }
     }
 
-    static async generateQuiz(topic: string, grade: string, subject: string, questionType: string, bloomLevel: string, count: number = 5) {
+    static async generateQuiz(topic: string, grade: string, subject: string, questionType: string, bloomLevel: string, count: number = 5, language: string = "auto") {
+        const isUrdu = language === "Urdu" || (language === "auto" && (subject.toLowerCase().includes('urdu') || topic.toLowerCase().includes('mazmoon') || /[\u0600-\u06FF]/.test(topic)));
+        const isHindi = language === "Hindi" || (language === "auto" && (subject.toLowerCase().includes('hindi') || /[\u0900-\u097F]/.test(topic)));
+        const isTelugu = language === "Telugu" || (language === "auto" && (subject.toLowerCase().includes('telugu') || /[\u0C00-\u0C7F]/.test(topic)));
+
         const prompt = `Generate a ${count}-question ${questionType} quiz on "${topic}" for grade ${grade}.
         Subject: ${subject}, Bloom's Taxonomy Level: ${bloomLevel}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), you MUST generate the entire content (questions, options, etc.) in that specific language's script.
-        - Otherwise, use ENGLISH.
+        - ${isUrdu ? "MANDATORY: Generate everything in URDU SCRIPT." : isHindi ? "MANDATORY: Generate everything in HINDI." : isTelugu ? "MANDATORY: Generate everything in TELUGU SCRIPT." : "Use ENGLISH."}
         
         Return STRICT JSON format:
         {
@@ -289,19 +294,17 @@ export class AIService {
         }
     }
 
-    static async generateMaterial(topic: string, type: string, grade?: string, subject?: string) {
+    static async generateMaterial(topic: string, type: string, grade?: string, subject?: string, language: string = "auto") {
         const lowerSubject = subject?.toLowerCase() || "";
-        const isUrdu = lowerSubject.includes('urdu');
-        const isHindi = lowerSubject.includes('hindi');
-        const isTelugu = lowerSubject.includes('telugu');
-        const isRegional = isUrdu || isHindi || isTelugu || lowerSubject.includes('tamil') || lowerSubject.includes('kannada') || lowerSubject.includes('marathi') || lowerSubject.includes('bengali') || lowerSubject.includes('arabic');
+        const isUrdu = language === "Urdu" || (language === "auto" && (lowerSubject.includes('urdu') || /[\u0600-\u06FF]/.test(topic)));
+        const isHindi = language === "Hindi" || (language === "auto" && (lowerSubject.includes('hindi') || /[\u0900-\u097F]/.test(topic)));
+        const isTelugu = language === "Telugu" || (language === "auto" && (lowerSubject.includes('telugu') || /[\u0C00-\u0C7F]/.test(topic)));
 
         const prompt = `Generate highly detailed, comprehensive textbook-style educational material for "${topic}".
         Grade: ${grade || "General"}, Subject: ${subject || "General"}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), you MUST generate the entire content in that specific language's script.
-        - Otherwise, use ENGLISH.
+        - ${isUrdu ? "MANDATORY: Generate everything in URDU SCRIPT." : isHindi ? "MANDATORY: Generate everything in HINDI." : isTelugu ? "MANDATORY: Generate everything in TELUGU SCRIPT." : "Use ENGLISH."}
         
         Return STRICT JSON format:
         {
@@ -331,17 +334,17 @@ export class AIService {
         }
     }
 
-    static async generateAssignment(topic: string, grade: string, subject: string, type: string, difficulty: string, count: string) {
+    static async generateAssignment(topic: string, grade: string, subject: string, type: string, difficulty: string, count: string, language: string = "auto") {
         const lowerSubject = subject.toLowerCase();
-        const isUrdu = lowerSubject.includes('urdu');
-        const isHindi = lowerSubject.includes('hindi');
-        const isTelugu = lowerSubject.includes('telugu');
+        const isUrdu = language === "Urdu" || (language === "auto" && (lowerSubject.includes('urdu') || /[\u0600-\u06FF]/.test(topic)));
+        const isHindi = language === "Hindi" || (language === "auto" && (lowerSubject.includes('hindi') || /[\u0900-\u097F]/.test(topic)));
+        const isTelugu = language === "Telugu" || (language === "auto" && (lowerSubject.includes('telugu') || /[\u0C00-\u0C7F]/.test(topic)));
+
         const prompt = `Generate a high-quality, professional academic assignment for "${topic}" (Grade ${grade}).
         Subject: ${subject}, Difficulty: ${difficulty}.
         
         Language Instructions:
-        - If the subject is a language (Urdu, Hindi, Telugu, Tamil, Arabic, etc.), use that language's script for ALL content.
-        - Otherwise, use ENGLISH.
+        - ${isUrdu ? "MANDATORY: Generate everything in URDU SCRIPT." : isHindi ? "MANDATORY: Generate everything in HINDI." : isTelugu ? "MANDATORY: Generate everything in TELUGU SCRIPT." : "Use ENGLISH."}
         
         Return STRICT JSON format:
         {
@@ -375,11 +378,11 @@ export class AIService {
         }
     }
 
-    static async generateQuestionPaper(subject: string, grade: string, marks: number, difficulty: string, examType: string, syllabus: string) {
+    static async generateQuestionPaper(subject: string, grade: string, marks: number, difficulty: string, examType: string, syllabus: string, language: string = "auto") {
         const lowerSubject = subject.toLowerCase();
-        const isUrdu = lowerSubject.includes('urdu');
-        const isHindi = lowerSubject.includes('hindi');
-        const isTelugu = lowerSubject.includes('telugu');
+        const isUrdu = language === "Urdu" || (language === "auto" && (lowerSubject.includes('urdu') || /[\u0600-\u06FF]/.test(syllabus)));
+        const isHindi = language === "Hindi" || (language === "auto" && (lowerSubject.includes('hindi') || /[\u0900-\u097F]/.test(syllabus)));
+        const isTelugu = language === "Telugu" || (language === "auto" && (lowerSubject.includes('telugu') || /[\u0C00-\u0C7F]/.test(syllabus)));
 
         const sectionAName = isUrdu ? 'حصہ اول (معروضی سوالات)' : isHindi ? 'खंड क (वस्तुनिष्ठ प्रश्न)' : isTelugu ? 'విభాగం A (మల్టిపుల్ ఛాయిస్)' : 'Section A (Objective Type)';
         const sectionBName = isUrdu ? 'حصہ دوم (مختصر جوابات)' : isHindi ? 'खंड ख (लघु उत्तरीय प्रश्न)' : isTelugu ? 'విభాగం B (స్వల్ప సమాధానాలు)' : 'Section B (Short Answer Type)';
@@ -497,6 +500,51 @@ export class AIService {
     }
 
     private static getSimulatedLesson(topic: string, grade: string, subject: string, hasPdf: boolean) {
+        const lowerSubject = subject.toLowerCase();
+        const lowerTopic = topic.toLowerCase();
+
+        const isUrdu = lowerSubject.includes('urdu') || lowerTopic.includes('mazmoon') || /[\u0600-\u06FF]/.test(topic);
+        const isHindi = lowerSubject.includes('hindi') || /[\u0900-\u097F]/.test(topic);
+        const isTelugu = lowerSubject.includes('telugu') || /[\u0C00-\u0C7F]/.test(topic);
+
+        if (isUrdu) {
+            return {
+                title: topic,
+                objective: [`${topic} کے بنیادی تصورات کو سمجھنا`, `${topic} کے اصولوں کا عملی مشقوں میں اطلاق`],
+                materials: ["درسی کتاب", "نوٹ بک", "وائٹ بورڈ"],
+                explanation: "آپ کا سبق تیار ہے۔ فی الحال AI انجن پر زیادہ بوجھ کی وجہ سے یہ ایک بنیادی خاکہ ہے۔ مکمل تفصیل کے لیے براہ کرم دوبارہ کوشش کریں یا صفحہ ریفریش کریں۔",
+                pedagogy: "کلاس روم ڈسکشن اور براہ راست ہدایات۔",
+                activities: [{ "time": "20 منٹ", "task": "بنیادی مطالعہ", "description": `${topic} سے متعلق مثالوں پر کام۔`, "recap": "خلاصہ", "tip": "طلبہ کی حوصلہ افزائی کریں۔" }],
+                videoSearchQuery: topic,
+                motivationalQuote: "علم وہ طاقت ہے جس سے آپ دنیا بدل سکتے ہیں۔"
+            };
+        }
+
+        if (isHindi) {
+            return {
+                title: topic,
+                objective: [`${topic} की मूल अवधारणाओं को समझना`, `${topic} के सिद्धांतों को व्यवहार में लाना`],
+                materials: ["पाठ्यपुस्तक", "नोटबुक", "व्हाइटबोर्ड"],
+                explanation: "क्षमा करें, AI इंजन व्यस्त है। यह एक बुनियादी रूपरेखा है। कृपया पूर्ण विवरण के लिए पुनः प्रयास करें।",
+                pedagogy: "कक्षा चर्चा।",
+                activities: [{ "time": "20 मिनट", "task": "मुख्य अभ्यास", "description": `${topic} पर आधारित कार्य।`, "recap": "सारांश", "tip": "छात्रों को प्रेरित करें।" }],
+                videoSearchQuery: topic,
+                motivationalQuote: "शिक्षा सबसे शक्तिशाली हथियार है।"
+            };
+        }
+
+        if (isTelugu) {
+            return {
+                title: topic,
+                objective: [`${topic} యొక్క ప్రాథమిక భావనలను అర్థం చేసుకోవడం`],
+                materials: ["పాఠ్యపుస్తకం", "నోట్బుక్"],
+                explanation: "AI ఇంజిన్ లోడ్ కారణంగా ఇది ప్రాథమిక రూపురేఖలు మాత్రమే. దయచేసి మళ్ళీ ప్రయత్నించండి.",
+                activities: [{ "time": "20 నిమిషాలు", "task": "అభ్యాసం", "description": `${topic} పై కృత్యాలు.`, "recap": "ముగింపు", "tip": "విద్యార్థులను ప్రోత్సహించండి." }],
+                videoSearchQuery: topic,
+                motivationalQuote: "విద్య అనేది ప్రపంచాన్ని మార్చగల శక్తివంతమైన ఆయుధం."
+            };
+        }
+
         return {
             title: topic,
             objective: [

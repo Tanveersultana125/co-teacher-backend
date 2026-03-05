@@ -62,7 +62,14 @@ export const generateQuizAI = async (req: AuthRequest, res: Response) => {
             tName = topicDoc.data()?.name;
         }
 
-        if (!tName) return res.status(400).json({ error: 'Topic name is required' });
+        if (!tName) {
+            if (req.body.pdfText) {
+                tName = "Context from PDF";
+                sName = sName || "General";
+            } else {
+                return res.status(400).json({ error: 'Topic name is required' });
+            }
+        }
 
         const gradeVal = grade || "10";
         const finalSubjectName = sName || "General";
@@ -70,7 +77,8 @@ export const generateQuizAI = async (req: AuthRequest, res: Response) => {
         const bLevel = req.body.bloomLevel || "Mixed";
         const count = req.body.count || 5;
 
-        const aiResponse = await AIService.generateQuiz(tName, gradeVal, finalSubjectName, qType, bLevel, count);
+        const language = req.body.language || "auto";
+        const aiResponse = await AIService.generateQuiz(tName, gradeVal, finalSubjectName, qType, bLevel, count, language);
 
         const teacherId = req.user?.id;
         if (!teacherId) return res.status(401).json({ error: 'Unauthorized' });
