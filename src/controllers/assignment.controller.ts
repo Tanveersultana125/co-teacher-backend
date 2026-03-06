@@ -76,15 +76,13 @@ export const generateAssignmentContent = async (req: AuthRequest, res: Response)
         const teacherId = req.user?.id;
         if (!teacherId) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { title: aiTitle, instructions: aiInstructions, answerKey: aiAnswerKey, ...contentRest } = aiResponse;
-
         const assignmentData: any = {
-            title: aiTitle || `${assignmentType}: ${topic}`,
-            description: aiInstructions?.[0] || `AI Generated ${assignmentType} on ${topic}`,
-            instructions: aiInstructions || [],
-            content: Object.keys(contentRest).length > 0 ? contentRest : aiResponse,
-            answerKey: aiAnswerKey || aiResponse.answers || {},
-            assignmentType: aiResponse.type || assignmentType,
+            title: aiResponse.title || `${assignmentType}: ${topic}`,
+            description: aiResponse.instructions?.[0] || `AI Generated ${assignmentType} on ${topic}`,
+            instructions: aiResponse.instructions || [],
+            content: aiResponse.content || aiResponse,
+            answerKey: aiResponse.answerKey || aiResponse.answers || {},
+            assignmentType: assignmentType,
             type: 'ASSIGNMENT',
             teacherId,
             grade: parseInt(grade) || 10,
@@ -95,6 +93,7 @@ export const generateAssignmentContent = async (req: AuthRequest, res: Response)
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
+
 
         // Save to lessonPlans collection to appear in Library
         const docRef = await db.collection('lessonPlans').add(assignmentData);

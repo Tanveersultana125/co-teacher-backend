@@ -340,36 +340,59 @@ export class AIService {
         const isHindi = language === "Hindi" || (language === "auto" && (lowerSubject.includes('hindi') || /[\u0900-\u097F]/.test(topic)));
         const isTelugu = language === "Telugu" || (language === "auto" && (lowerSubject.includes('telugu') || /[\u0C00-\u0C7F]/.test(topic)));
 
-        const prompt = `Generate a high-quality, professional academic assignment for "${topic}" (Grade ${grade}).
-        Subject: ${subject}, Difficulty: ${difficulty}.
+        let structurePrompt = "";
+        if (type === "Worksheet") {
+            structurePrompt = `
+            "content": {
+                "sectionA_MCQs": [{"q": "Question text", "options": ["A", "B", "C", "D"], "correct": "Correct Option"}],
+                "sectionB_FillBlanks": ["Sentence with a ____"],
+                "sectionC_Match": [{"left": "Term", "right": "Definition"}],
+                "sectionD_ShortAnswers": ["What is..."]
+            },
+            "answerKey": {
+                "MCQs": ["Correct Option"],
+                "FillBlanks": ["Answer"],
+                "Match": ["Term -> Definition"],
+                "ShortAnswers": ["Model Answer"]
+            }`;
+        } else if (type === "Project") {
+            structurePrompt = `
+            "content": {
+                "questions": ["Research question 1", "Concept question 2"],
+                "activities": ["Step 1: Research", "Step 2: Build"]
+            },
+            "answerKey": {
+                "Project": ["Guidelines and expected outcomes"]
+            }`;
+        } else {
+            // Default for Homework
+            structurePrompt = `
+            "content": {
+                "assignmentQuestions": ["Short answer question 1", "Critical thinking question 2"],
+                "fillInTheBlanks": ["Blank 1", "Blank 2"],
+                "activityQuestions": ["Home experiment 1"],
+                "projectIdeas": ["Mini-project idea"]
+            },
+            "answerKey": {
+                "Questions": ["Answer 1"],
+                "Blanks": ["Answer"],
+                "Activities": ["Outcome"]
+            }`;
+        }
+
+        const prompt = `Generate a professional educational ${type} for "${topic}" (Grade ${grade}).
+        Subject: ${subject}, Difficulty: ${difficulty}, Target Count: ${count} questions per major section.
         
         Language Instructions:
         - ${isUrdu ? "MANDATORY: Generate everything in URDU SCRIPT." : isHindi ? "MANDATORY: Generate everything in HINDI." : isTelugu ? "MANDATORY: Generate everything in TELUGU SCRIPT." : "Use ENGLISH."}
         
         Return STRICT JSON format:
         {
-            "title": "${isUrdu ? 'تفویض' : isHindi ? 'सत्रीय कार्य' : isTelugu ? 'అసైన్‌మెంట్' : topic + ' Assignment'}",
-            "intro": "Brief academic introduction to the topic for the assignment.",
-            "keyPoints": ["Crucial concept 1", "Important fact 2"],
-            "mcqs": [
-                {"question": "Professional MCQ Question 1", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": "Option B"}
-            ],
-            "matchFollowing": [
-                {"left": "Item 1", "right": "Matching Item 1"}
-            ],
-            "assignmentQuestions": ["Descriptive/Short Answer Question 1"],
-            "fillInTheBlanks": ["Important sentence with a ____"],
-            "activityQuestions": ["Practical hands-on task or experiment"],
-            "projectIdeas": ["A long-term project or research idea"],
-            "answers": {
-                "mcqs": ["Option B"],
-                "matchFollowing": ["Item 1 -> Matching Item 1"],
-                "assignmentQuestions": ["Detailed answer to question 1"],
-                "fillInTheBlanks": ["Correct word for blank 1"],
-                "activityQuestions": ["Guide or expected outcome for activity"],
-                "projectIdeas": ["Basic outline for project"]
-            }
+            "title": "${isUrdu ? 'تفویض' : isHindi ? 'सत्रीय कार्य' : isTelugu ? 'అసైన్‌మెంట్' : topic + ' ' + type}",
+            "instructions": ["Read questions carefully", "Answer in your own words"],
+            ${structurePrompt}
         }`;
+
 
         try {
             return await this.generateWithGroq(prompt);
