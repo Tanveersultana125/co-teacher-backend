@@ -23,3 +23,18 @@ export const analyzeData = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to analyze data', details: error instanceof Error ? error.message : String(error) });
     }
 };
+export const chatWithData = async (req: AuthRequest, res: Response) => {
+    try {
+        const { question, csvData } = req.body;
+
+        if (!question || !csvData) {
+            return res.status(400).json({ error: 'Question and CSV data are required' });
+        }
+
+        const answer = await AIService.chatWithData(question, csvData);
+        res.json({ answer });
+    } catch (error) {
+        console.error("Chat Error:", error);
+        res.status(500).json({ error: 'Failed to process chat request' });
+    }
+};

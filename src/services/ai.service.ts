@@ -244,7 +244,14 @@ export class AIService {
                 "lowAttendanceList": [{"name": "Student C", "attendance": 60, "performanceStatus": "Poor"}],
                 "insights": ["Insight 1", "Insight 2"]
             }`;
+        } else if (analysisType === "ask_questions") {
+            schemaPrompt = `
+            Return JSON with this structure:
+            {
+                "summary": "A brief overview of what this data contains (e.g., marks for 30 students across 5 subjects, attendance period, etc.). This sets the context for the user to start asking questions."
+            }`;
         }
+
 
         const prompt = `Analyze this student data (CSV format):
         ${csvData.substring(0, 50000)}
@@ -358,12 +365,16 @@ export class AIService {
         } else if (type === "Project") {
             structurePrompt = `
             "content": {
-                "questions": ["Research question 1", "Concept question 2"],
-                "activities": ["Step 1: Research", "Step 2: Build"]
+                "questions": ["Research questions for students to answer"],
+                "activities": ["Project tasks or steps for students"]
             },
             "answerKey": {
-                "Project": ["Guidelines and expected outcomes"]
+                "Teacher-Only Assessment Questions": ["Probing questions for the teacher to ask the student during assessment"],
+                "Model Answers": ["Comprehensive answers to students' research questions"],
+                "Project Guidance & Criteria": ["Scoring rubric and expected outcomes for each activity step"]
             }`;
+
+
         } else {
             // Default for Homework
             structurePrompt = `
@@ -611,4 +622,34 @@ export class AIService {
     private static getSimulatedPPT(topic: string, grade: string, curriculum: string, numSlides: number) {
         return Array.from({ length: numSlides }).map((_, i) => ({ slide_number: i + 1, title: "Slide", content: [] }));
     }
+
+    static async chatWithData(question: string, csvContext: string) {
+        const prompt = `You are an expert Data Analyst for an educational platform called Co-Teacher.
+        
+        DATA CONTEXT (CSV):
+        ${csvContext.substring(0, 30000)}
+        
+        USER QUESTION:
+        ${question}
+        
+        TASK:
+        - Analyze the question against the provided data.
+        - Give a clear, helpful, and professional answer.
+        - If the question asks for calculations (like averages, toppers, etc.), please perform them.
+        - If the data doesn't contain the answer, politely say so.
+        
+        Return STRICT JSON format:
+        {
+            "answer": "Your detailed answer goes here. You can use Markdown for formatting (bold, lists, etc.)."
+        }`;
+
+        try {
+            const res = await this.generateWithGroq(prompt);
+            return res.answer || "I couldn't process that question right now.";
+        } catch (error) {
+            console.error("Chat With Data Error:", error);
+            return "Sorry, I encountered an error while analyzing your question. Please try again.";
+        }
+    }
 }
+
